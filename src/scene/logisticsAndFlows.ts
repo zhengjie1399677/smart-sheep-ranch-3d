@@ -214,6 +214,7 @@ export function createLogisticsAndFlows(scene: THREE.Scene, mats: SharedMaterial
   // ==============================
   const roadGroup = new THREE.Group();
   let roadOrder = 0;
+  const centerDashTransforms: Array<{ x: number; y: number; z: number; eastWest: boolean }> = [];
 
   const addRoadRect = (cx: number, cz: number, w: number, d: number, edgeColor?: number) => {
     const isEastWest = w >= d;
@@ -221,10 +222,39 @@ export function createLogisticsAndFlows(scene: THREE.Scene, mats: SharedMaterial
     const roadCenterY = (isEastWest ? 0.084 : 0.062) + microOffset;
     const stripCenterY = (isEastWest ? 0.093 : 0.071) + microOffset;
 
-    const road = new THREE.Mesh(new THREE.BoxGeometry(w, 0.09, d), mats.roadAsphalt);
+    const roadGeo = new THREE.BoxGeometry(w, 0.09, d);
+    const uvAttr = roadGeo.attributes.uv;
+    for (let i = 0; i < uvAttr.count; i++) {
+      const u = uvAttr.getX(i);
+      const v = uvAttr.getY(i);
+      if (isEastWest) {
+        uvAttr.setXY(i, (v * d) / 5.5, (u * w) / 6.0);
+      } else {
+        uvAttr.setXY(i, (u * w) / 5.5, (v * d) / 6.0);
+      }
+    }
+    uvAttr.needsUpdate = true;
+
+    const road = new THREE.Mesh(roadGeo, mats.roadAsphalt);
     road.position.set(cx, roadCenterY, cz);
     road.receiveShadow = true;
     roadGroup.add(road);
+
+    const roadLen = Math.max(w, d);
+    const roadWid = Math.min(w, d);
+    if (roadLen >= 36 && roadWid >= 4.4 && roadWid <= 6.2) {
+      const step = 7.5;
+      const halfSpan = roadLen * 0.5 - 4.0;
+      for (let offset = -halfSpan; offset <= halfSpan; offset += step) {
+        const dx = isEastWest ? cx + offset : cx;
+        const dz = isEastWest ? cz : cz + offset;
+        // Skip canal bridge spans
+        if (!isEastWest && dz > 30 && dz < 66 && (Math.abs(dx + 244) < 5 || Math.abs(dx - 147) < 5 || Math.abs(dx - 232) < 5)) {
+          continue;
+        }
+        centerDashTransforms.push({ x: dx, y: roadCenterY + 0.049, z: dz, eastWest: isEastWest });
+      }
+    }
 
     if (edgeColor !== undefined) {
       const stripMat = new THREE.MeshBasicMaterial({ color: edgeColor });
@@ -331,6 +361,31 @@ export function createLogisticsAndFlows(scene: THREE.Scene, mats: SharedMaterial
   const medianSouth = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.14, 210), mats.wallSlate);
   medianSouth.position.set(378, 0.08, 122);
   roadGroup.add(medianNorth, medianSouth);
+
+  if (centerDashTransforms.length > 0) {
+    const dashGeo = new THREE.PlaneGeometry(0.16, 2.4);
+    dashGeo.rotateX(-Math.PI / 2);
+    const dashMat = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      roughness: 0.78,
+      metalness: 0.02,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    const dashMesh = new THREE.InstancedMesh(dashGeo, dashMat, centerDashTransforms.length);
+    dashMesh.receiveShadow = true;
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < centerDashTransforms.length; i++) {
+      const t = centerDashTransforms[i];
+      dummy.position.set(t.x, t.y, t.z);
+      dummy.rotation.set(0, t.eastWest ? Math.PI / 2 : 0, 0);
+      dummy.updateMatrix();
+      dashMesh.setMatrixAt(i, dummy.matrix);
+    }
+    dashMesh.instanceMatrix.needsUpdate = true;
+    roadGroup.add(dashMesh);
+  }
 
   scene.add(roadGroup);
 

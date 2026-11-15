@@ -35,8 +35,8 @@ export const TOUR_STEPS: TourStep[] = [
       { label: '空间法则', value: '净污分流+屠宰出园独立' },
       { label: '运维模式', value: '智能装备+人机协同' },
     ],
-    cameraPos: [76, 515, 725],
-    target: [64, 4, 8],
+    cameraPos: [72, 225, 535],
+    target: [64, 4, 10],
   },
   {
     id: 'ecology',

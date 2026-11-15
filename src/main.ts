@@ -133,7 +133,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.065;
 controls.maxPolarAngle = Math.PI / 2 - 0.05;
 controls.minDistance = 6;
-controls.maxDistance = 1150;
+controls.maxDistance = 1350;
 controls.target.set(...TOUR_STEPS[0].target);
 controls.update();
 

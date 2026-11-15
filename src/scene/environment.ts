@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { SharedMaterials, tagStepInteractive } from './materials';
+import { createGrasslandTexture, SharedMaterials, tagStepInteractive } from './materials';
 import {
   createBroadleafTreeGeometries,
   createPoplarTreeGeometries,
@@ -65,7 +66,7 @@ const LIGHTING_PRESETS: Record<
   },
 };
 
-function createFlatRibbonGeometry(curve: THREE.CatmullRomCurve3, width: number, segments = 120): THREE.BufferGeometry {
+function createFlatRibbonGeometry(curve: THREE.CatmullRomCurve3, width: number, segments = 120, uvRepeatU = 36): THREE.BufferGeometry {
   const pts = curve.getPoints(segments);
   const positions: number[] = [];
   const uvs: number[] = [];
@@ -81,7 +82,7 @@ function createFlatRibbonGeometry(curve: THREE.CatmullRomCurve3, width: number, 
 
     positions.push(p.x - nx * hw, p.y, p.z - nz * hw);
     positions.push(p.x + nx * hw, p.y, p.z + nz * hw);
-    uvs.push(t * 8, 0, t * 8, 1);
+    uvs.push(t * uvRepeatU, 0, t * uvRepeatU, 1);
 
     if (i < pts.length - 1) {
       const a = i * 2;
@@ -125,13 +126,16 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
       void main() {
         float h = normalize(vWorldPosition).y;
         float t = pow(max(h, 0.0), 0.55);
-        gl_FragColor = vec4(mix(bottomColor, topColor, t), 1.0);
+        float horizonGlow = pow(1.0 - clamp(abs(h) * 4.2, 0.0, 1.0), 2.6);
+        vec3 col = mix(bottomColor, topColor, t);
+        col = mix(col, bottomColor * 1.05, horizonGlow * 0.35);
+        gl_FragColor = vec4(col, 1.0);
       }
     `,
   });
   scene.add(new THREE.Mesh(skyGeo, skyMat));
 
-  const fog = new THREE.FogExp2(LIGHTING_PRESETS.daylight.fogColor, 0.00062);
+  const fog = new THREE.FogExp2(LIGHTING_PRESETS.daylight.fogColor, 0.00066);
   scene.fog = fog;
 
   const hemiLight = new THREE.HemisphereLight(0xd6eeff, 0xb2a58b, 1.05);
@@ -199,8 +203,9 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
 
   const valleyGeo = new THREE.ExtrudeGeometry(valleyShape, { depth: 0.5, bevelEnabled: false, curveSegments: 32 });
   valleyGeo.rotateX(Math.PI / 2);
+  const oasisGrassTex = createGrasslandTexture('#c4dab9', 'rgba(155, 194, 134, 0.28)', 'rgba(208, 218, 174, 0.24)', 0.055, 0.055);
   const oasisBaseMat = new THREE.MeshStandardMaterial({
-    color: 0xc2d8b7,
+    map: oasisGrassTex,
     roughness: 0.94,
     polygonOffset: true,
     polygonOffsetFactor: 1,
@@ -223,7 +228,8 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
   const enclaveParkBase = new THREE.Mesh(
     enclaveGeo,
     new THREE.MeshStandardMaterial({
-      color: 0xb9d3aa,
+      map: oasisGrassTex,
+      color: 0xf4faef,
       roughness: 0.94,
       polygonOffset: true,
       polygonOffsetFactor: 1,
@@ -235,7 +241,8 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
   scene.add(enclaveParkBase);
 
   // Soft greener pasture meadows & landscaped parkland lawns inside both Main Oasis and I区 Enclave
-  const meadowMat = new THREE.MeshStandardMaterial({ color: 0x9bc487, roughness: 0.94 });
+  const meadowTex = createGrasslandTexture('#9bc487', 'rgba(126, 178, 108, 0.3)', 'rgba(176, 206, 142, 0.25)', 6, 6);
+  const meadowMat = new THREE.MeshStandardMaterial({ map: meadowTex, roughness: 0.94 });
   const pasturePockets: Array<[number, number, number, number]> = [
     [-190, -90, 68, 56], // A/N civic parkland
     [-194, -8, 44, 34], // Restored A/N lakeside ecological greenbelt (north of Eco Canal)
@@ -269,23 +276,37 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
     new THREE.Vector3(180, 0.14, 56),
     new THREE.Vector3(228, 0.14, 58),
   ]);
-  const bankMat = new THREE.MeshStandardMaterial({ color: 0x8ea389, roughness: 0.92 });
-  const bankMesh = new THREE.Mesh(createFlatRibbonGeometry(canalCurve, 10.5, 160), bankMat);
-  bankMesh.position.y = 0.03;
+  const bankTex = createGrasslandTexture('#869c82', 'rgba(104, 128, 96, 0.3)', 'rgba(176, 178, 152, 0.26)', 1, 1);
+  const bankMat = new THREE.MeshStandardMaterial({ map: bankTex, roughness: 0.92 });
+  const bankMesh = new THREE.Mesh(createFlatRibbonGeometry(canalCurve, 10.5, 160, 40), bankMat);
+  bankMesh.position.y = 0.0;
   bankMesh.receiveShadow = true;
 
-  const canalWater = new THREE.Mesh(createFlatRibbonGeometry(canalCurve, 7.2, 160), mats.waterPool);
-  canalWater.position.y = 0.04;
+  const canalWater = new THREE.Mesh(createFlatRibbonGeometry(canalCurve, 7.2, 160, 28), mats.waterPool);
+  canalWater.position.y = 0.025;
+  canalWater.receiveShadow = true;
   scene.add(bankMesh, canalWater);
 
-  // Central Bio-Wetland Lake (30, 42) along the Ecological Canal
+  // Central Bio-Wetland Lake (30, 42) sits cleanly 3.5cm above canalWater so the canal ribbon never cuts/Z-fights inside it
+  const lakeWaterMat = mats.waterPool.clone();
+  lakeWaterMat.polygonOffset = true;
+  lakeWaterMat.polygonOffsetFactor = -2;
+  lakeWaterMat.polygonOffsetUnits = -2;
+
   for (const [lx, lz, r, sz] of [[30, 42, 22, 0.52]] as const) {
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(r + 1.8, r + 2.2, 0.12, 28), bankMat);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(r + 1.8, r + 2.2, 0.12, 32), bankMat);
     rim.scale.set(1, 1, sz);
-    rim.position.set(lx, 0.07, lz);
-    const water = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.14, 28), mats.waterPool);
+    rim.position.set(lx, 0.09, lz);
+    const lakeWaterGeo = new THREE.CylinderGeometry(r, r, 0.14, 36);
+    const luv = lakeWaterGeo.attributes.uv;
+    for (let i = 0; i < luv.count; i++) {
+      luv.setXY(i, luv.getX(i) * 3.0, luv.getY(i) * 1.8);
+    }
+    luv.needsUpdate = true;
+    const water = new THREE.Mesh(lakeWaterGeo, lakeWaterMat);
     water.scale.set(1, 1, sz);
-    water.position.set(lx, 0.11, lz);
+    water.position.set(lx, 0.13, lz);
+    water.receiveShadow = true;
     scene.add(rim, water);
   }
 
@@ -312,6 +333,13 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
           if (!m) continue;
           const matName = m.name || '';
           const stdMat = m as THREE.MeshStandardMaterial;
+          if (matName.includes('WL_Water')) {
+            stdMat.normalMap = mats.waterPool.normalMap;
+            stdMat.normalScale = new THREE.Vector2(0.14, 0.14);
+            stdMat.roughness = 0.22;
+            stdMat.metalness = 0.12;
+            stdMat.envMapIntensity = 1.1;
+          }
           if (
             matName.includes('WL_Water') ||
             matName.includes('WL_Glass') ||
@@ -638,12 +666,124 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
     scene.add(turbine);
   }
 
+  // Instanced Eco-Solar Streetlights & Roadside Shrubs along Main Boulevards (only 4 Draw Calls total)
+  const lightPosts: Array<{ x: number; z: number; yaw: number }> = [];
+  const shrubSpots: Array<{ x: number; z: number; scale: number; tint: number }> = [];
+
+  const isNearJunctionOrBridge = (x: number, z: number): boolean => {
+    if (z > 28 && z < 68 && (Math.abs(x + 244) < 12 || Math.abs(x - 147) < 12 || Math.abs(x - 232) < 12)) {
+      return true;
+    }
+    if (Math.abs(z + 142) < 9 || Math.abs(z + 56) < 9 || Math.abs(z - 8) < 9 || Math.abs(z - 64) < 9 || Math.abs(z - 160) < 9) {
+      return Math.abs(x + 244) < 9 || Math.abs(x + 182) < 9 || Math.abs(x - 147) < 9 || Math.abs(x - 232) < 9;
+    }
+    return false;
+  };
+
+  // N-S boulevards (offset ±3.8m outside road edge, lamp arm facing inward toward road)
+  for (let z = -126; z <= 144; z += 34) {
+    if (!isNearJunctionOrBridge(-244, z)) {
+      lightPosts.push({ x: -247.9, z, yaw: Math.PI / 2 });
+      shrubSpots.push({ x: -248.4, z: z + 7, scale: 0.85, tint: 0 }, { x: -248.2, z: z - 8, scale: 0.72, tint: 1 });
+    }
+    if (!isNearJunctionOrBridge(232, z)) {
+      lightPosts.push({ x: 235.9, z, yaw: -Math.PI / 2 });
+      shrubSpots.push({ x: 236.4, z: z + 8, scale: 0.8, tint: 2 });
+    }
+  }
+  for (let z = -132; z <= -68; z += 30) {
+    lightPosts.push({ x: -185.7, z, yaw: Math.PI / 2 });
+    shrubSpots.push({ x: -186.1, z: z + 6, scale: 0.78, tint: 1 });
+  }
+  // E-W boulevards (North Link z=-142, South Eco Blvd z=64, South Link z=160)
+  for (let x = -222; x <= 212; x += 38) {
+    if (!isNearJunctionOrBridge(x, -142)) {
+      lightPosts.push({ x, z: -145.9, yaw: 0 });
+      shrubSpots.push({ x: x + 9, z: -146.3, scale: 0.82, tint: 0 });
+    }
+    if (!isNearJunctionOrBridge(x, 64)) {
+      lightPosts.push({ x, z: 67.9, yaw: Math.PI });
+      shrubSpots.push({ x: x - 8, z: 68.3, scale: 0.88, tint: 2 });
+    }
+    if (!isNearJunctionOrBridge(x, 160)) {
+      lightPosts.push({ x, z: 163.9, yaw: Math.PI });
+      shrubSpots.push({ x: x + 10, z: 164.4, scale: 0.75, tint: 1 });
+    }
+  }
+
+  const lampHeadMat = new THREE.MeshStandardMaterial({
+    color: 0xf8fafc,
+    emissive: 0xffe4b5,
+    emissiveIntensity: 0.22,
+    roughness: 0.35,
+  });
+
+  if (lightPosts.length > 0) {
+    const basePost = new THREE.CylinderGeometry(0.08, 0.12, 4.8, 7);
+    basePost.translate(0, 2.4, 0);
+    const arm = new THREE.BoxGeometry(0.08, 0.08, 1.05);
+    arm.translate(0, 4.72, 0.45);
+    const poleGeo = mergeGeometries([basePost, arm]);
+
+    const headGeo = new THREE.BoxGeometry(0.28, 0.09, 0.52);
+    headGeo.translate(0, 4.66, 0.92);
+
+    const solarGeo = new THREE.BoxGeometry(0.42, 0.04, 0.56);
+    solarGeo.rotateX(0.25);
+    solarGeo.translate(0, 4.92, 0.05);
+
+    const poleInst = new THREE.InstancedMesh(poleGeo, mats.steelFrame, lightPosts.length);
+    const headInst = new THREE.InstancedMesh(headGeo, lampHeadMat, lightPosts.length);
+    const solarInst = new THREE.InstancedMesh(solarGeo, mats.solarPanel, lightPosts.length);
+    poleInst.castShadow = true;
+
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < lightPosts.length; i++) {
+      const lp = lightPosts[i];
+      dummy.position.set(lp.x, 0, lp.z);
+      dummy.rotation.set(0, lp.yaw, 0);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      poleInst.setMatrixAt(i, dummy.matrix);
+      headInst.setMatrixAt(i, dummy.matrix);
+      solarInst.setMatrixAt(i, dummy.matrix);
+    }
+    poleInst.instanceMatrix.needsUpdate = true;
+    headInst.instanceMatrix.needsUpdate = true;
+    solarInst.instanceMatrix.needsUpdate = true;
+    scene.add(poleInst, headInst, solarInst);
+  }
+
+  if (shrubSpots.length > 0) {
+    const shrubGeo = new THREE.IcosahedronGeometry(0.68, 1);
+    const shrubMat = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0.02 });
+    const shrubInst = new THREE.InstancedMesh(shrubGeo, shrubMat, shrubSpots.length);
+    shrubInst.castShadow = true;
+    shrubInst.receiveShadow = true;
+    const shrubTints = [new THREE.Color(0x5d8f49), new THREE.Color(0x6da156), new THREE.Color(0x7ca663)];
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < shrubSpots.length; i++) {
+      const s = shrubSpots[i];
+      dummy.position.set(s.x, 0.34 * s.scale, s.z);
+      dummy.rotation.set(0, (i * 1.1) % Math.PI, 0);
+      dummy.scale.set(s.scale * 1.25, s.scale * 0.72, s.scale * 1.15);
+      dummy.updateMatrix();
+      shrubInst.setMatrixAt(i, dummy.matrix);
+      shrubInst.setColorAt(i, shrubTints[s.tint % shrubTints.length]);
+    }
+    shrubInst.instanceMatrix.needsUpdate = true;
+    if (shrubInst.instanceColor) shrubInst.instanceColor.needsUpdate = true;
+    scene.add(shrubInst);
+  }
+
   return {
     setLighting(mode: LightingMode) {
       const p = LIGHTING_PRESETS[mode];
       skyUniforms.topColor.value.setHex(p.skyTop);
       skyUniforms.bottomColor.value.setHex(p.skyBottom);
       fog.color.setHex(p.fogColor);
+      fog.density = mode === 'daylight' ? 0.00066 : 0.00084;
+      lampHeadMat.emissiveIntensity = mode === 'daylight' ? 0.22 : 2.15;
       sunLight.color.setHex(p.sunColor);
       sunLight.intensity = p.sunIntensity;
       sunLight.position.set(...p.sunPos);
@@ -667,6 +807,12 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
         );
         spray.rotation.y = elapsed * (idx % 2 === 0 ? 0.85 : -0.85);
       });
+      if (mats.waterPool.map) {
+        mats.waterPool.map.offset.x = -(elapsed * 0.02) % 1;
+      }
+      if (mats.waterPool.normalMap) {
+        mats.waterPool.normalMap.offset.set(-(elapsed * 0.025) % 1, Math.sin(elapsed * 0.25) * 0.008);
+      }
     },
   };
 }
