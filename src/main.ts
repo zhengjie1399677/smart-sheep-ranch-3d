@@ -13,6 +13,7 @@ import { createOutboundAndHubZone } from './scene/zones/outboundAndHub';
 import { createLogisticsAndFlows } from './scene/logisticsAndFlows';
 import { createSceneLabels } from './scene/labels';
 import { updateVegetationWind } from './scene/vegetation';
+import { createExplorationController, ExplorationMode } from './scene/exploration';
 import { initHud } from './ui/hud';
 
 const appRoot = document.getElementById('app');
@@ -186,13 +187,43 @@ function goToStepById(stepId: string, stopAutoTour = true) {
   }
 }
 
+const exploration = createExplorationController(scene, camera, renderer.domElement, {
+  onModeChanged: (nextMode: ExplorationMode) => {
+    hud.setExplorationMode(nextMode);
+    boostHighFps(1500);
+    if (nextMode === 'orbit') {
+      controls.enabled = true;
+      camera.getWorldDirection(navForward);
+      controls.target.copy(camera.position).addScaledVector(navForward, 8);
+      goToStepIndex(currentStepIndex, true);
+    } else {
+      flyActive = false;
+      manualCameraMoved = true;
+      controls.enabled = false;
+      if (autoTour) {
+        autoTour = false;
+        hud.setAutoTourState(false);
+      }
+    }
+  },
+  onRequestOrbitMode: () => {
+    exploration.setMode('orbit');
+  },
+});
+
 const labels = createSceneLabels(container, scene, (stepId) => {
+  if (exploration.getMode() !== 'orbit') {
+    exploration.setMode('orbit');
+  }
   goToStepById(stepId, true);
 });
 
 const hud = initHud({
   onSelectStep: (idx, stopAuto) => goToStepIndex(idx, stopAuto),
   onToggleAutoTour: () => {
+    if (exploration.getMode() !== 'orbit') {
+      exploration.setMode('orbit');
+    }
     autoTour = !autoTour;
     hud.setAutoTourState(autoTour);
     if (autoTour) {
@@ -206,7 +237,15 @@ const hud = initHud({
   onToggleLabels: (visible) => labels.setVisible(visible),
   onChangeLighting: (mode) => env.setLighting(mode),
   onRemediationChange: (progress) => salineForage.setRemediationProgress(progress),
-  onResetView: () => goToStepIndex(0, true),
+  onResetView: () => {
+    if (exploration.getMode() !== 'orbit') {
+      exploration.setMode('orbit');
+    }
+    goToStepIndex(0, true);
+  },
+  onChangeMode: (nextMode) => exploration.setMode(nextMode),
+  onToggleDriveCam: () => exploration.toggleDriveCameraStyle(),
+  onResetVehicle: () => exploration.resetVehicle(),
 });
 
 // User manual camera interaction cancels active fly-to & auto-tour
@@ -250,6 +289,10 @@ window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (isTextEditableTarget(e.target)) return;
   if (e.target instanceof HTMLInputElement && e.target.type === 'range' && e.code.startsWith('Arrow')) return;
+  if (exploration.getMode() !== 'orbit') {
+    boostHighFps(1200);
+    return;
+  }
 
   if (NAV_KEY_CODES.has(e.code)) {
     e.preventDefault();
@@ -324,6 +367,7 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
 });
 
 renderer.domElement.addEventListener('pointerup', (e) => {
+  if (exploration.getMode() !== 'orbit') return;
   const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
   if (dist > 5) return; // Was a drag, not a click
 
@@ -365,8 +409,8 @@ function boostHighFps(durationMs = 1200): void {
 controls.addEventListener('start', () => boostHighFps(1500));
 controls.addEventListener('end', () => boostHighFps(1200));
 renderer.domElement.addEventListener('wheel', () => boostHighFps(1200), { passive: true });
-renderer.domElement.addEventListener('pointermove', (e) => {
-  if (e.buttons > 0) boostHighFps(1200);
+window.addEventListener('pointermove', (e) => {
+  if (e.buttons > 0 || exploration.isPointerLocked()) boostHighFps(1000);
 });
 
 function animate(now = performance.now()) {
@@ -392,33 +436,42 @@ function animate(now = performance.now()) {
   manureCompost.update(elapsed);
   outboundHub.update(elapsed);
   logistics.update(elapsed);
+  const expState = exploration.update(dt, elapsed);
 
-  // Auto-tour progression (wall-clock elapsed)
-  if (autoTour) {
-    const now = performance.now();
-    if (now - lastAutoStepTime >= AUTO_STEP_DURATION_MS) {
-      lastAutoStepTime = now;
-      const next = currentStepIndex + 1 >= TOUR_STEPS.length ? 0 : currentStepIndex + 1;
-      goToStepIndex(next, false);
+  const expMode = exploration.getMode();
+  if (expMode === 'orbit') {
+    // Auto-tour progression (wall-clock elapsed)
+    if (autoTour) {
+      const nowMs = performance.now();
+      if (nowMs - lastAutoStepTime >= AUTO_STEP_DURATION_MS) {
+        lastAutoStepTime = nowMs;
+        const next = currentStepIndex + 1 >= TOUR_STEPS.length ? 0 : currentStepIndex + 1;
+        goToStepIndex(next, false);
+      }
     }
-  }
 
-  // Smooth camera interpolation or WASD/Arrow roaming
-  if (flyActive) {
-    const alpha = 1 - Math.exp(-3.4 * dt);
-    camera.position.lerp(desiredCamPos, alpha);
-    controls.target.lerp(desiredTarget, alpha);
-    if (
-      camera.position.distanceTo(desiredCamPos) < 0.15 &&
-      controls.target.distanceTo(desiredTarget) < 0.15
-    ) {
-      flyActive = false;
+    // Smooth camera interpolation or WASD/Arrow roaming
+    if (flyActive) {
+      const alpha = 1 - Math.exp(-3.4 * dt);
+      camera.position.lerp(desiredCamPos, alpha);
+      controls.target.lerp(desiredTarget, alpha);
+      if (
+        camera.position.distanceTo(desiredCamPos) < 0.15 &&
+        controls.target.distanceTo(desiredTarget) < 0.15
+      ) {
+        flyActive = false;
+      }
+    } else {
+      applyKeyboardPan(dt);
     }
+
+    controls.update();
   } else {
-    applyKeyboardPan(dt);
+    hud.updateExplorationHud(expState);
+    if (expState && expState.speedKmh > 0) {
+      boostHighFps(900);
+    }
   }
-
-  controls.update();
   const activeStepId = !manualCameraMoved ? TOUR_STEPS[currentStepIndex]?.id : undefined;
   const nearScienceInterior =
     activeStepId === 'science_interior' ||

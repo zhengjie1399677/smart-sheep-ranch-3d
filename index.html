@@ -243,6 +243,12 @@
       </div>
 
       <div class="toolbar">
+        <div class="segment-group mode-switch" role="group" aria-label="视角模式">
+          <button class="mode-btn active" data-mode="orbit" title="高空俯瞰与流程导览视角">俯瞰导览</button>
+          <button class="mode-btn" data-mode="walk" title="第一人称步行自由参观园区">第一人称步行</button>
+          <button class="mode-btn" data-mode="drive" title="驾驶园区纯电巡检车游览">开车巡检</button>
+        </div>
+
         <button id="btn-auto-tour" class="pill-btn primary" title="开启或暂停全园区自动讲解漫游">
           <span class="btn-icon" id="auto-tour-icon">▶</span>
           <span id="auto-tour-text">自动演示漫游</span>
@@ -383,12 +389,37 @@
     </aside>
 
     <!-- Bottom Step Timeline -->
-    <nav class="timeline-bar glass-card" aria-label="全园区 A-Q 分区流程导览">
+    <nav class="timeline-bar glass-card" id="timeline-bar" aria-label="全园区 A-Q 分区流程导览">
       <div id="timeline-steps" class="timeline-steps"></div>
     </nav>
 
+    <!-- First-Person / Driving Exploration HUD -->
+    <div id="fp-crosshair" class="fp-crosshair" hidden></div>
+    <section id="exploration-hud" class="exploration-hud glass-card" hidden aria-label="漫游与驾驶仪表">
+      <div class="exp-top">
+        <div class="exp-status">
+          <span class="exp-badge" id="exp-mode-badge">第一人称步行</span>
+          <span class="exp-zone" id="exp-zone-name">绿洲生态牧场道路网</span>
+        </div>
+        <div class="exp-telemetry" id="exp-telemetry">
+          <span class="exp-gear" id="exp-gear" hidden>P</span>
+          <strong id="exp-speed">0</strong>
+          <small>km/h</small>
+        </div>
+      </div>
+      <div class="exp-bottom">
+        <span class="exp-hint" id="exp-hint">点击画面锁定视角 · WASD 移动 · Shift 加速 · Space 跳跃</span>
+        <div class="exp-actions">
+          <button type="button" id="btn-exp-board" class="exp-action-btn primary" hidden>上车驾驶 (F)</button>
+          <button type="button" id="btn-exp-cam" class="exp-action-btn" hidden>切换视角 (V)</button>
+          <button type="button" id="btn-exp-reset" class="exp-action-btn" hidden>车回主路 (R)</button>
+          <button type="button" id="btn-exp-exit" class="exp-action-btn">返回俯瞰</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Interaction Hint -->
-    <div class="interaction-hint">
+    <div class="interaction-hint" id="interaction-hint">
       左键拖拽旋转 · 右键平移 · 滚轮缩放 · WASD / 方向键移动（Shift 加速） · 点击园区 A–Q 建筑群可直接聚焦查看
     </div>
   </div>

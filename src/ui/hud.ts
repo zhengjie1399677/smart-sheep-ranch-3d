@@ -1,5 +1,6 @@
 import { CycleId, TOUR_STEPS, TourStep } from '../data/tourSteps';
 import { LightingMode } from '../scene/environment';
+import { ExplorationHudState, ExplorationMode } from '../scene/exploration';
 
 export interface HudCallbacks {
   onSelectStep: (stepIndex: number, stopAutoTour?: boolean) => void;
@@ -10,11 +11,16 @@ export interface HudCallbacks {
   onChangeLighting: (mode: LightingMode) => void;
   onRemediationChange: (progress: number) => void;
   onResetView: () => void;
+  onChangeMode: (mode: ExplorationMode) => void;
+  onToggleDriveCam: () => void;
+  onResetVehicle: () => void;
 }
 
 export interface HudController {
   setActiveStep: (stepIndex: number) => void;
   setAutoTourState: (playing: boolean) => void;
+  setExplorationMode: (mode: ExplorationMode) => void;
+  updateExplorationHud: (state: ExplorationHudState | null) => void;
 }
 
 export function initHud(callbacks: HudCallbacks): HudController {
@@ -180,6 +186,36 @@ export function initHud(callbacks: HudCallbacks): HudController {
     });
   });
 
+  // Exploration mode segmented control (Orbit / Walk / Drive)
+  const modeBtns = document.querySelectorAll<HTMLButtonElement>('.mode-btn');
+  const timelineBar = document.getElementById('timeline-bar');
+  const interactionHint = document.getElementById('interaction-hint');
+  const fpCrosshair = document.getElementById('fp-crosshair');
+  const explorationHud = document.getElementById('exploration-hud');
+  const expModeBadge = document.getElementById('exp-mode-badge');
+  const expZoneName = document.getElementById('exp-zone-name');
+  const expGear = document.getElementById('exp-gear');
+  const expSpeed = document.getElementById('exp-speed');
+  const expHint = document.getElementById('exp-hint');
+  const btnExpBoard = document.getElementById('btn-exp-board') as HTMLButtonElement | null;
+  const btnExpCam = document.getElementById('btn-exp-cam') as HTMLButtonElement | null;
+  const btnExpReset = document.getElementById('btn-exp-reset') as HTMLButtonElement | null;
+  const btnExpExit = document.getElementById('btn-exp-exit') as HTMLButtonElement | null;
+
+  modeBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const m = (btn.dataset.mode as ExplorationMode) || 'orbit';
+      callbacks.onChangeMode(m);
+    });
+  });
+
+  btnExpBoard?.addEventListener('click', () => {
+    callbacks.onChangeMode(btnExpBoard.dataset.targetMode === 'walk' ? 'walk' : 'drive');
+  });
+  btnExpCam?.addEventListener('click', () => callbacks.onToggleDriveCam());
+  btnExpReset?.addEventListener('click', () => callbacks.onResetVehicle());
+  btnExpExit?.addEventListener('click', () => callbacks.onChangeMode('orbit'));
+
   // Saline remediation slider
   const updateSliderUi = (val: number) => {
     const t = val / 100;
@@ -218,6 +254,61 @@ export function initHud(callbacks: HudCallbacks): HudController {
       btnAutoTour.classList.toggle('playing', playing);
       autoIcon.textContent = playing ? '⏸' : '▶';
       autoText.textContent = playing ? '暂停自动漫游' : '自动演示漫游';
+    },
+    setExplorationMode(mode: ExplorationMode) {
+      modeBtns.forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+      const inOrbit = mode === 'orbit';
+      if (timelineBar) timelineBar.style.display = inOrbit ? '' : 'none';
+      if (interactionHint) interactionHint.style.display = inOrbit ? '' : 'none';
+      if (explorationHud) explorationHud.hidden = inOrbit;
+      if (fpCrosshair) fpCrosshair.hidden = mode !== 'walk';
+    },
+    updateExplorationHud(state: ExplorationHudState | null) {
+      if (!state) return;
+      if (expSpeed) expSpeed.textContent = String(state.speedKmh);
+      if (expZoneName) expZoneName.textContent = state.zoneName;
+      if (fpCrosshair) fpCrosshair.hidden = !(state.mode === 'walk' && state.isPointerLocked);
+
+      if (state.mode === 'walk') {
+        if (expModeBadge) expModeBadge.textContent = '第一人称步行';
+        if (expGear) expGear.hidden = true;
+        if (btnExpCam) btnExpCam.hidden = true;
+        if (btnExpReset) btnExpReset.hidden = true;
+        if (btnExpBoard) {
+          btnExpBoard.hidden = !state.nearCar;
+          btnExpBoard.textContent = '上车驾驶 (F)';
+          btnExpBoard.dataset.targetMode = 'drive';
+        }
+        if (expHint) {
+          expHint.textContent = state.nearCar
+            ? '已在巡检车旁 · 按 F 键上车驾驶 · 点击画面锁定视角 · Shift 奔跑'
+            : state.isPointerLocked
+              ? 'WASD 移动 · Shift 奔跑 · Space 跳跃 · Esc 解锁鼠标'
+              : '点击画面自由环顾（或按住左键拖拽） · WASD 移动 · Shift 奔跑 · Space 跳跃';
+        }
+      } else if (state.mode === 'drive') {
+        if (expModeBadge) {
+          expModeBadge.textContent =
+            state.driveCameraStyle === 'cockpit' ? '巡检车 · 第一人称驾驶' : '巡检车 · 追尾视角';
+        }
+        if (expGear) {
+          expGear.hidden = false;
+          expGear.textContent = state.gear;
+        }
+        if (btnExpCam) {
+          btnExpCam.hidden = false;
+          btnExpCam.textContent = state.driveCameraStyle === 'cockpit' ? '切追尾视角 (V)' : '切驾驶舱 (V)';
+        }
+        if (btnExpReset) btnExpReset.hidden = false;
+        if (btnExpBoard) {
+          btnExpBoard.hidden = false;
+          btnExpBoard.textContent = '停车下车 (F)';
+          btnExpBoard.dataset.targetMode = 'walk';
+        }
+        if (expHint) {
+          expHint.textContent = 'WASD 加速/转向 · Space 手刹 · Shift 提速 · V 切换视角 · F 下车 · R 复位';
+        }
+      }
     },
   };
 }
