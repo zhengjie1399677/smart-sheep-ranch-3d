@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230f9d6e'/%3E%3Cpath d='M9 19c0-4.2 3.4-7.5 7.6-7.5 3.6 0 6.4 2.4 6.4 5.8 0 2.6-1.9 4.7-4.5 4.7H12c-1.7 0-3-1.3-3-3z' fill='%23ffffff'/%3E%3C/svg%3E" />
+  <title>中乌布哈拉州智慧生态草牧业绿色循环示范园区 · 3D 规划演示</title>
+  <style id="critical-preload-style">
+    html,
+    body,
+    #app {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #dcebf3;
+      font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    #app:not(.styles-loaded) > :not(#loading-screen) {
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at 50% 34%, rgba(255, 255, 255, 0.96) 0%, rgba(232, 246, 241, 0.98) 46%, #d4e8e6 100%);
+      color: #132a23;
+      opacity: 1;
+      transform: scale(1);
+      transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1), transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      user-select: none;
+    }
+
+    #loading-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(15, 157, 110, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 157, 110, 0.045) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.85) 15%, transparent 72%);
+      -webkit-mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.85) 15%, transparent 72%);
+      pointer-events: none;
+    }
+
+    #loading-screen.is-hidden {
+      opacity: 0;
+      transform: scale(1.025);
+      pointer-events: none;
+    }
+
+    .loader-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: min(440px, 88vw);
+      padding: 34px 28px 30px;
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: 24px;
+      box-shadow: 0 22px 60px rgba(15, 52, 40, 0.12);
+    }
+
+    .loader-emblem {
+      position: relative;
+      width: 78px;
+      height: 78px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loader-ring-outer {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2.5px solid rgba(15, 157, 110, 0.14);
+      border-top-color: #0f9d6e;
+      border-right-color: #0ea5e9;
+      animation: loader-spin 1.45s cubic-bezier(0.55, 0.18, 0.45, 0.85) infinite;
+    }
+
+    .loader-ring-inner {
+      position: absolute;
+      inset: 9px;
+      border-radius: 50%;
+      border: 1.5px dashed rgba(14, 165, 233, 0.35);
+      animation: loader-spin-rev 4.8s linear infinite;
+    }
+
+    .loader-core {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0f9d6e, #0ea5e9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 20px rgba(15, 157, 110, 0.28);
+      animation: loader-pulse 2.2s ease-in-out infinite;
+    }
+
+    .loader-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(15, 157, 110, 0.1);
+      color: #0a7853;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      margin-bottom: 10px;
+    }
+
+    .loader-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #132a23;
+      line-height: 1.35;
+      margin: 0 0 6px;
+    }
+
+    .loader-status {
+      font-size: 12.5px;
+      color: #4b655c;
+      margin: 0 0 18px;
+      min-height: 18px;
+    }
+
+    .loader-track {
+      position: relative;
+      width: 100%;
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(19, 42, 35, 0.08);
+      overflow: hidden;
+    }
+
+    .loader-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #0f9d6e 0%, #10b981 55%, #0ea5e9 100%);
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+      transition: width 0.14s ease-out;
+    }
+
+    .loader-meta {
+      width: 100%;
+      margin-top: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: #5b756c;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .loader-meta b {
+      color: #0a7853;
+      font-weight: 700;
+    }
+
+    @keyframes loader-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes loader-spin-rev {
+      to {
+        transform: rotate(-360deg);
+      }
+    }
+
+    @keyframes loader-pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.06);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="loading-screen" role="status" aria-live="polite" aria-label="三维园区场景加载中">
+      <div class="loader-card">
+        <div class="loader-emblem">
+          <div class="loader-ring-outer"></div>
+          <div class="loader-ring-inner"></div>
+          <div class="loader-core">
+            <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <path d="M8.5 20.5c0-4.6 3.7-8.2 8.3-8.2 3.9 0 6.9 2.6 6.9 6.3 0 2.8-2.1 5.1-4.9 5.1H11.8c-1.8 0-3.3-1.4-3.3-3.2z" fill="#ffffff" />
+              <circle cx="20.2" cy="17.2" r="1.3" fill="#0a7853" />
+            </svg>
+          </div>
+        </div>
+        <div class="loader-pill">中乌合作示范 · 数字孪生三维系统</div>
+        <h2 class="loader-title">智慧生态草牧业绿色循环示范园区</h2>
+        <p class="loader-status" id="loading-status">正在初始化园区三维环境与资产…</p>
+        <div class="loader-track">
+          <div class="loader-bar" id="loading-bar"></div>
+        </div>
+        <div class="loader-meta">
+          <span id="loading-detail">准备装配 A–Q 全区模型</span>
+          <b id="loading-percent">0%</b>
+        </div>
+      </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <!-- Top Header Bar -->
+    <header class="top-bar">
+      <div class="brand-badge">
+        <div class="brand-dot"></div>
+        <div>
+          <h1>智慧生态草牧业绿色循环示范园区</h1>
+          <p class="subtitle">中乌合作示范 · 一体两翼三中心五基地 · 自动化装备与人机协同管控</p>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button id="btn-auto-tour" class="pill-btn primary" title="开启或暂停全园区自动讲解漫游">
+          <span class="btn-icon" id="auto-tour-icon">▶</span>
+          <span id="auto-tour-text">自动演示漫游</span>
+        </button>
+
+        <button id="btn-toggle-flows" class="pill-btn active" title="显示或隐藏六大循环流线">
+          <span class="dot-teal"></span>
+          <span>六大循环</span>
+        </button>
+
+        <button id="btn-toggle-labels" class="pill-btn active" title="显示或隐藏 A-Q 分区标签">
+          <span>分区标签</span>
+        </button>
+
+        <div class="segment-group" role="group" aria-label="光影时段">
+          <button class="seg-btn" data-light="morning">晨曦</button>
+          <button class="seg-btn active" data-light="daylight">晴昼</button>
+          <button class="seg-btn" data-light="golden">暮光</button>
+        </div>
+
+        <button id="btn-reset-view" class="pill-btn" title="回到园区全览视角">
+          <span>全园复位</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Left Widgets (Collapsed by default): Saline Remediation + Six Cycles Filter + Concept Herd Mix -->
+    <aside class="left-widgets collapsed" id="left-widgets">
+      <div class="glass-card left-widgets-bar">
+        <div class="story-header">
+          <div class="step-pill">生态推演 · 循环筛选</div>
+          <button id="btn-collapse-left" class="icon-btn" title="收起/展开参数与筛选面板">展开</button>
+        </div>
+      </div>
+      <div class="left-widgets-body" id="left-widgets-body">
+        <div class="glass-card remediation-card">
+          <div class="card-head">
+            <span class="badge-eco">P区生态修复推演</span>
+            <strong id="remediation-year-label">第 3 年 · 绿洲良田</strong>
+          </div>
+          <input id="remediation-slider" type="range" min="0" max="100" value="85" aria-label="退化与盐碱地三年修复推演" />
+          <div class="slider-scale">
+            <span>荒漠盐斑期</span>
+            <span>林草固沙期</span>
+            <span>生态绿洲期</span>
+          </div>
+          <div class="eco-mini-stats">
+            <div>
+              <small>表层盐碱度</small>
+              <strong id="stat-salinity">2.4‰</strong>
+            </div>
+            <div>
+              <small>林草覆盖率</small>
+              <strong id="stat-coverage">88%</strong>
+            </div>
+            <div>
+              <small>土壤生境</small>
+              <strong id="stat-organic">显著改善</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card legend-card" id="flow-legend">
+          <div class="legend-head">
+            <span class="legend-title">六大循环系统筛选</span>
+            <button id="btn-cycle-all" class="mini-reset-btn">全部</button>
+          </div>
+          <div class="cycle-filters" id="cycle-filters">
+            <button type="button" class="cycle-chip active" data-cycle="grass">
+              <span class="c-dot" style="background:#10b981"></span>生态草畜
+            </button>
+            <button type="button" class="cycle-chip active" data-cycle="feed">
+              <span class="c-dot" style="background:#0ea5e9"></span>饲草饲料
+            </button>
+            <button type="button" class="cycle-chip active" data-cycle="water">
+              <span class="c-dot" style="background:#06b6d4"></span>水资源回用
+            </button>
+            <button type="button" class="cycle-chip active" data-cycle="manure">
+              <span class="c-dot" style="background:#f59e0b"></span>粪污资源
+            </button>
+            <button type="button" class="cycle-chip active" data-cycle="energy">
+              <span class="c-dot" style="background:#eab308"></span>绿色能源
+            </button>
+            <button type="button" class="cycle-chip active" data-cycle="digital">
+              <span class="c-dot" style="background:#6366f1"></span>种业数字
+            </button>
+          </div>
+          <div class="road-note">
+            <span class="road-item"><span class="swatch clean"></span><span>净道（饲草 / 食品）</span></span>
+            <span class="road-item"><span class="swatch dirty"></span><span>污道（清粪 / 污水）</span></span>
+          </div>
+        </div>
+
+        <div class="glass-card herd-card">
+          <div class="legend-title">10万只羊分群概念口径（最大同时在栏）</div>
+          <div class="herd-grid">
+            <span>基础母羊 <b>55,000</b></span>
+            <span>育成育肥 <b>22,000</b></span>
+            <span>羔羊保育 <b>12,000</b></span>
+            <span>后备母羊 <b>10,000</b></span>
+            <span>核心种公羊 <b>1,000</b></span>
+            <span class="herd-note">含杜泊 / 萨福克 / 卡拉库尔</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Side Presentation Story Panel (Collapsed by default) -->
+    <aside class="story-panel glass-card collapsed" id="story-panel">
+      <div class="story-header">
+        <div class="step-pill" id="story-step-badge">00 / 全园总览</div>
+        <button id="btn-collapse-story" class="icon-btn" title="收起/展开解说面板">展开</button>
+      </div>
+      <div class="story-body" id="story-body">
+        <h2 id="story-title">智慧生态草牧业绿色循环示范园区</h2>
+        <p id="story-desc" class="story-desc"></p>
+
+        <div class="story-section">
+          <div class="section-label">循环协同与上下游接口</div>
+          <div class="loop-chain" id="story-chain"></div>
+        </div>
+
+        <div class="story-section">
+          <div class="section-label">功能载体与核心装备</div>
+          <div class="tag-list" id="story-tags"></div>
+        </div>
+
+        <div class="story-section">
+          <div class="section-label">规划口径与示意边界</div>
+          <div class="spec-grid" id="story-specs"></div>
+        </div>
+
+        <div class="story-nav-footer">
+          <button id="btn-prev-step" class="nav-step-btn">← 上一环节</button>
+          <button id="btn-next-step" class="nav-step-btn primary">下一环节 →</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Bottom Step Timeline -->
+    <nav class="timeline-bar glass-card" aria-label="全园区 A-Q 分区流程导览">
+      <div id="timeline-steps" class="timeline-steps"></div>
+    </nav>
+
+    <!-- Interaction Hint -->
+    <div class="interaction-hint">
+      左键拖拽旋转 · 右键平移 · 滚轮缩放 · WASD / 方向键移动（Shift 加速） · 点击园区 A–Q 建筑群可直接聚焦查看
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
