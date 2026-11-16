@@ -166,27 +166,38 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
   outerDesert.receiveShadow = true;
   scene.add(outerDesert);
 
-  // Stylized low-poly sand dunes safely outside both oasis & highway footprint (zero ground clipping)
-  const duneMat = new THREE.MeshStandardMaterial({ color: 0xd8bd8d, roughness: 0.97 });
-  const duneSpecs: Array<[number, number, number, number, number]> = [
-    [-490, -290, 95, 22, 0.4],
-    [-200, -355, 100, 26, -0.2],
-    [55, -365, 100, 24, 0.25],
-    [575, -240, 105, 24, -0.3],
-    [590, -40, 100, 23, 0.5],
-    [-485, 30, 105, 24, 0.7],
-    [-450, 300, 110, 25, -0.4],
-    [605, 200, 115, 25, 0.5],
-    [105, 360, 105, 22, -0.2],
-  ];
-  for (const [dx, dz, rad, h, rot] of duneSpecs) {
-    const dune = new THREE.Mesh(new THREE.ConeGeometry(rad, h, 7), duneMat);
-    dune.scale.set(1.45, 1, 0.72);
-    dune.rotation.y = rot;
-    dune.position.set(dx, h * 0.5 - 0.55, dz);
-    dune.receiveShadow = true;
-    scene.add(dune);
+  const hashR = (i: number, s: number) => {
+    const x = Math.sin(i * 12.9898 + s * 78.233) * 43758.5453;
+    return x - Math.floor(x);
+  };
+
+  // Sparse desert scrub & saxaul shrubs scattered across the outer steppe (1 instanced draw call)
+  const scrubSpots: Array<[number, number, number]> = [];
+  for (let i = 0; i < 1400 && scrubSpots.length < 420; i++) {
+    const ang = hashR(i, 11) * Math.PI * 2;
+    const r = 300 + Math.sqrt(hashR(i, 12)) * 720;
+    const x = Math.cos(ang) * r + 64;
+    const z = Math.sin(ang) * r + 8;
+    if (x > -295 && x < 415 && z > -195 && z < 265) continue; // keep park & enclave clear
+    if (x > 355 && x < 400) continue; // keep freight highway clear
+    scrubSpots.push([x, z, 0.8 + hashR(i, 13) * 1.6]);
   }
+  const scrubGeo = new THREE.IcosahedronGeometry(1, 0);
+  const scrubMat = new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: true });
+  const scrubInst = new THREE.InstancedMesh(scrubGeo, scrubMat, scrubSpots.length);
+  const scrubTints = [new THREE.Color(0x8d9a5b), new THREE.Color(0xa59a62), new THREE.Color(0x7c8a52), new THREE.Color(0xb3a271)];
+  const scrubDummy = new THREE.Object3D();
+  scrubSpots.forEach(([x, z, s], i) => {
+    scrubDummy.position.set(x, s * 0.25 - 0.4, z);
+    scrubDummy.rotation.set(0, hashR(i, 14) * Math.PI, 0);
+    scrubDummy.scale.set(s * 1.3, s * 0.6, s * 1.1);
+    scrubDummy.updateMatrix();
+    scrubInst.setMatrixAt(i, scrubDummy.matrix);
+    scrubInst.setColorAt(i, scrubTints[i % scrubTints.length]);
+  });
+  scrubInst.instanceMatrix.needsUpdate = true;
+  if (scrubInst.instanceColor) scrubInst.instanceColor.needsUpdate = true;
+  scene.add(scrubInst);
 
   // Organic contoured green oasis base valley cleanly wrapping all Main Ring roads (X<=246, Z:-162..+174)
   // while leaving wide X:247..268 desert isolation barrier before I区 Enclave
@@ -370,9 +381,11 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
   const cloudGroup = new THREE.Group();
   const cloudMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    roughness: 0.95,
+    roughness: 1,
     transparent: true,
-    opacity: 0.58,
+    opacity: 0.72,
+    flatShading: false,
+    depthWrite: false,
   });
   for (const [cx, cy, cz, sc] of [
     [-320, 158, -225, 2.2],
@@ -380,12 +393,16 @@ export function createEnvironment(scene: THREE.Scene, mats: SharedMaterials): En
     [315, 156, -205, 2.0],
     [-325, 152, 205, 2.1],
     [305, 164, 240, 2.2],
+    [-520, 175, -20, 2.6],
+    [600, 170, 30, 2.5],
+    [120, 185, -420, 2.8],
   ]) {
     const cg = new THREE.Group();
-    for (let k = 0; k < 4; k++) {
-      const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(5.5 - k * 0.65, 1), cloudMat);
-      puff.position.set((k - 1.5) * 4.5, Math.sin(k) * 1.4, (k % 2) * 2.2);
-      puff.scale.set(1.35, 0.72, 1.0);
+    for (let k = 0; k < 7; k++) {
+      const r = 6.2 - Math.abs(k - 3) * 0.9;
+      const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 2), cloudMat);
+      puff.position.set((k - 3) * 3.8, Math.max(0, 2.2 - Math.abs(k - 3) * 0.8), Math.sin(k * 1.7) * 2.4);
+      puff.scale.set(1.4, 0.62, 1.05);
       cg.add(puff);
     }
     cg.position.set(cx, cy, cz);
